@@ -73,8 +73,7 @@
   <link rel="stylesheet" href="https://unpkg.com/aos@2.3.4/dist/aos.css" />
 
   <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
+  
   <style>
 /* ============================================================
    طلای تاج — Luxury Persian Gold Store
@@ -1605,6 +1604,7 @@ input:focus, select:focus, textarea:focus {
         <i class="fab fa-whatsapp"></i>
         <span>واتساپ</span>
       </a>
+      <button class="theme-toggle" id="themeToggle" aria-label="تغییر تم"><i class="fas fa-moon"></i></button>
       <button class="hamburger" id="hamburger" aria-label="منو">
         <span></span><span></span><span></span>
       </button>
@@ -1696,23 +1696,6 @@ input:focus, select:focus, textarea:focus {
         قیمت‌ها به صورت زنده از
         <a href="https://www.tala.ir" target="_blank" rel="noopener">tala.ir</a>
         دریافت می‌شوند
-      </div>
-    </div>
-
-    <!-- Chart -->
-    <div class="chart-section" data-aos="fade-up" data-aos-delay="100">
-      <div class="chart-header">
-        <h3><i class="fas fa-chart-area"></i> نمودار قیمت طلای ۱۸ عیار</h3>
-        <div class="chart-tabs">
-          <button class="chart-tab active" data-period="1">امروز</button>
-          <button class="chart-tab" data-period="7">۷ روز</button>
-          <button class="chart-tab" data-period="30">۳۰ روز</button>
-          <button class="chart-tab" data-period="90">۹۰ روز</button>
-          <button class="chart-tab" data-period="365">۱ سال</button>
-        </div>
-      </div>
-      <div class="chart-wrap">
-        <canvas id="goldChart"></canvas>
       </div>
     </div>
 
@@ -2317,11 +2300,42 @@ input:focus, select:focus, textarea:focus {
 const PROXY_URL  = 'https://tajgold-proxy.YOUR-SUBDOMAIN.workers.dev';
 const REFRESH_MS = 60_000;
 
+
+// ============================================================
+// DARK / LIGHT MODE
+// ============================================================
+function initThemeToggle() {
+  const btn = document.getElementById('themeToggle');
+  if (!btn) return;
+  const saved = localStorage.getItem('taj-theme') || 'dark';
+  applyTheme(saved);
+  btn.addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme') || 'dark';
+    const next = current === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    localStorage.setItem('taj-theme', next);
+  });
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('themeToggle');
+  if (!btn) return;
+  if (theme === 'light') {
+    btn.innerHTML = '<i class="fas fa-moon"></i>';
+    btn.title = 'حالت شب';
+  } else {
+    btn.innerHTML = '<i class="fas fa-sun"></i>';
+    btn.title = 'حالت روز';
+  }
+}
+
 // ============================================================
 // INIT
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
   AOS.init({ duration: 700, once: true, offset: 60 });
+  initThemeToggle();
   initHeader();
   initParticles();
   initMobileMenu();
@@ -2492,7 +2506,6 @@ async function fetchPrices() {
     }
 
     apiWorking = true;
-    showApiStatus('live');
     applyPrices(parsed);
 
   } catch (err) {
@@ -2500,7 +2513,6 @@ async function fetchPrices() {
     const detail = err.name === 'AbortError' ? 'timeout' : (err.message || String(err));
     console.warn('[طلای تاج] API error:', detail);
     apiWorking = false;
-    showApiStatus('error', detail);
     applyPrices(demoWithNoise());
   }
 
@@ -2553,54 +2565,7 @@ function demoWithNoise() {
   return out;
 }
 
-function showApiStatus(mode, detail = '') {
-  let bar = document.getElementById('apiStatusBar');
-  if (!bar) {
-    bar = document.createElement('div');
-    bar.id = 'apiStatusBar';
-    bar.style.cssText = [
-      'position:fixed;bottom:90px;left:24px;z-index:9999;',
-      'padding:7px 16px;border-radius:20px;font-size:.75rem;font-weight:700;',
-      'font-family:Vazirmatn,sans-serif;direction:rtl;max-width:280px;',
-      'box-shadow:0 2px 12px rgba(0,0,0,.25);transition:opacity .5s;'
-    ].join('');
-    document.body.appendChild(bar);
-  }
 
-  if (mode === 'live') {
-    bar.style.background = '#22c55e';
-    bar.style.color = '#fff';
-    bar.textContent = '● قیمت زنده';
-    bar.style.opacity = '1';
-    setTimeout(() => { bar.style.opacity = '0'; }, 4000);
-
-  } else if (mode === 'demo') {
-    // Silent — no bar shown when using demo data
-    bar.style.opacity = '0';
-    return;
-
-  } else if (mode === 'error') {
-    // Key is set but API call failed
-    bar.style.background = '#ef4444';
-    bar.style.color = '#fff';
-    bar.title = detail; // full error on hover
-    // Detect likely cause
-    let msg = '⚠ خطای API — داده آزمایشی';
-    if (detail.includes('401') || detail.includes('403')) {
-      msg = '⚠ کلید API نامعتبر است (401/403)';
-    } else if (detail.includes('CORS') || detail.includes('NetworkError') || detail.includes('Failed to fetch')) {
-      msg = '⚠ خطای CORS — سرور اونور را بررسی کنید';
-    } else if (detail.includes('timeout') || detail.includes('abort')) {
-      msg = '⚠ پاسخ API دریافت نشد (timeout)';
-    } else if (detail.includes('empty') || detail.includes('unrecognised')) {
-      msg = '⚠ فرمت پاسخ API ناشناخته — کنسول را ببینید';
-    }
-    bar.textContent = msg;
-    bar.style.opacity = '1';
-    // Keep visible longer for errors
-    setTimeout(() => { bar.style.opacity = '0.3'; }, 8000);
-  }
-}
 
 function updateTimestamp() {
   const el = document.getElementById('lastUpdate');
@@ -2661,9 +2626,6 @@ function applyPrices(prices) {
     }
   }
 
-  // Update chart with real gold18 price
-  if (prices.gold18?.price) updateChartWithPrice(prices.gold18.price);
-
   // FIX: only auto-fill calculator if the field is empty (not userSet)
   autoFillCalc('bGoldPrice', prices.gold18?.price);
   autoFillCalc('sGoldPrice', prices.gold18?.price);
@@ -2698,131 +2660,8 @@ let goldChart    = null;
 let currentPeriod = 1;
 let latestPrice   = 7_850_000;
 
-function initChartTabs() {
-  document.querySelectorAll('.chart-tab').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.chart-tab').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      currentPeriod = parseInt(btn.dataset.period, 10);
-      buildChart(currentPeriod, latestPrice);
-    });
-  });
-  // Defer first chart build to ensure canvas has dimensions
-  requestAnimationFrame(() => buildChart(1, latestPrice));
-}
 
-function updateChartWithPrice(price) {
-  latestPrice = price;
-  buildChart(currentPeriod, price);
-}
 
-function buildChart(days, basePrice) {
-  const canvas = document.getElementById('goldChart');
-  if (!canvas) return;
-
-  // FIX: wait for canvas to have non-zero dimensions
-  if (canvas.offsetWidth === 0) {
-    setTimeout(() => buildChart(days, basePrice), 200);
-    return;
-  }
-
-  const labels = [];
-  const data   = [];
-  const now    = new Date();
-
-  let price = basePrice * (1 - days * 0.0006);
-  const volatility = 0.0025;
-
-  const pointCount = days === 1 ? 24 : days;
-  for (let i = pointCount; i >= 0; i--) {
-    const d = new Date(now);
-    if (days === 1) {
-      d.setHours(d.getHours() - i);
-      labels.push(d.getHours() + ':۰۰');
-    } else {
-      d.setDate(d.getDate() - i);
-      labels.push(d.toLocaleDateString('fa-IR', {
-        month: 'short',
-        day: days > 90 ? undefined : 'numeric',
-      }));
-    }
-    price = price * (1 + (Math.random() - 0.47) * volatility);
-    data.push(Math.round(price));
-  }
-  data[data.length - 1] = basePrice;
-
-  const ctx = canvas.getContext('2d');
-  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.offsetHeight || 280);
-  gradient.addColorStop(0, 'rgba(212,175,55,0.22)');
-  gradient.addColorStop(1, 'rgba(212,175,55,0)');
-
-  if (goldChart) { goldChart.destroy(); goldChart = null; }
-
-  goldChart = new Chart(canvas, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: 'طلای ۱۸ عیار (تومان)',
-        data,
-        borderColor: '#D4AF37',
-        borderWidth: 2,
-        backgroundColor: gradient,
-        fill: true,
-        tension: 0.4,
-        pointRadius: days === 1 ? 2 : 0,
-        pointHoverRadius: 5,
-        pointBackgroundColor: '#D4AF37',
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2,
-      }],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: { duration: 600 },
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          rtl: true,
-          textDirection: 'rtl',
-          backgroundColor: '#141414',
-          borderColor: 'rgba(212,175,55,0.3)',
-          borderWidth: 1,
-          titleColor: '#D4AF37',
-          bodyColor: 'rgba(255,255,255,0.7)',
-          padding: 12,
-          callbacks: {
-            label: ctx => ' ' + formatNum(ctx.raw) + ' تومان',
-          },
-        },
-      },
-      scales: {
-        x: {
-          grid: { color: 'rgba(0,0,0,0.04)' },
-          ticks: {
-            color: '#888',
-            font: { family: 'Vazirmatn', size: 11 },
-            maxTicksLimit: 8,
-            maxRotation: 0,
-          },
-          border: { display: false },
-        },
-        y: {
-          position: 'left',
-          grid: { color: 'rgba(0,0,0,0.05)' },
-          ticks: {
-            color: '#888',
-            font: { family: 'Vazirmatn', size: 11 },
-            callback: v => formatNum(v),
-          },
-          border: { display: false },
-        },
-      },
-    },
-  });
-}
 
 // ============================================================
 // CALCULATORS
@@ -3008,243 +2847,80 @@ function row(label, val) {
 // ============================================================
 // PRODUCTS
 // ============================================================
+// SVG تصویر مرتبط برای هر محصول
+const PRODUCT_SVGS = {
+  wedding: `<svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="60" cy="60" r="55" fill="#1a1a1a" stroke="#D4AF37" stroke-width="1.5"/>
+    <circle cx="60" cy="60" r="28" fill="none" stroke="#D4AF37" stroke-width="3"/>
+    <circle cx="60" cy="60" r="20" fill="none" stroke="#A88B1A" stroke-width="1.5"/>
+    <circle cx="60" cy="32" r="6" fill="#D4AF37"/>
+    <circle cx="60" cy="32" r="3" fill="#F5E17B"/>
+    <path d="M45 55 Q60 45 75 55" stroke="#D4AF37" stroke-width="1.5" fill="none"/>
+    <text x="60" y="85" text-anchor="middle" fill="#D4AF37" font-size="9" font-family="Vazirmatn">ست عروسی</text>
+  </svg>`,
+  ring: `<svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="60" cy="60" r="55" fill="#1a1a1a" stroke="#D4AF37" stroke-width="1.5"/>
+    <ellipse cx="60" cy="65" rx="26" ry="18" fill="none" stroke="#D4AF37" stroke-width="3"/>
+    <ellipse cx="60" cy="55" rx="26" ry="10" fill="#141414" stroke="#D4AF37" stroke-width="2"/>
+    <ellipse cx="60" cy="55" rx="10" ry="6" fill="#A88B1A"/>
+    <circle cx="60" cy="53" r="5" fill="#D4AF37"/>
+    <circle cx="60" cy="53" r="2.5" fill="#F5E17B"/>
+    <line x1="55" y1="49" x2="65" y2="49" stroke="#fff" stroke-width="0.5" opacity="0.5"/>
+    <text x="60" y="92" text-anchor="middle" fill="#D4AF37" font-size="9" font-family="Vazirmatn">انگشتر</text>
+  </svg>`,
+  necklace: `<svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="60" cy="60" r="55" fill="#1a1a1a" stroke="#D4AF37" stroke-width="1.5"/>
+    <path d="M30 35 Q60 80 90 35" stroke="#D4AF37" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <circle cx="60" cy="78" r="10" fill="#A88B1A" stroke="#D4AF37" stroke-width="1.5"/>
+    <circle cx="60" cy="78" r="5" fill="#F5E17B"/>
+    <circle cx="30" cy="35" r="3" fill="#D4AF37"/>
+    <circle cx="90" cy="35" r="3" fill="#D4AF37"/>
+    <circle cx="45" cy="62" r="2" fill="#D4AF37"/>
+    <circle cx="75" cy="62" r="2" fill="#D4AF37"/>
+    <text x="60" y="100" text-anchor="middle" fill="#D4AF37" font-size="9" font-family="Vazirmatn">گردنبند</text>
+  </svg>`,
+  bracelet: `<svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="60" cy="60" r="55" fill="#1a1a1a" stroke="#D4AF37" stroke-width="1.5"/>
+    <ellipse cx="60" cy="60" rx="35" ry="22" fill="none" stroke="#D4AF37" stroke-width="3"/>
+    <ellipse cx="60" cy="60" rx="28" ry="15" fill="none" stroke="#A88B1A" stroke-width="1"/>
+    <circle cx="60" cy="38" r="4" fill="#D4AF37"/>
+    <circle cx="60" cy="82" r="4" fill="#D4AF37"/>
+    <circle cx="25" cy="60" r="4" fill="#D4AF37"/>
+    <circle cx="95" cy="60" r="4" fill="#D4AF37"/>
+    <circle cx="33" cy="44" r="3" fill="#A88B1A"/>
+    <circle cx="87" cy="44" r="3" fill="#A88B1A"/>
+    <circle cx="33" cy="76" r="3" fill="#A88B1A"/>
+    <circle cx="87" cy="76" r="3" fill="#A88B1A"/>
+    <text x="60" y="108" text-anchor="middle" fill="#D4AF37" font-size="9" font-family="Vazirmatn">دستبند</text>
+  </svg>`,
+  earring: `<svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="60" cy="60" r="55" fill="#1a1a1a" stroke="#D4AF37" stroke-width="1.5"/>
+    <circle cx="40" cy="35" r="7" fill="none" stroke="#D4AF37" stroke-width="2"/>
+    <circle cx="80" cy="35" r="7" fill="none" stroke="#D4AF37" stroke-width="2"/>
+    <line x1="40" y1="42" x2="40" y2="56" stroke="#D4AF37" stroke-width="2"/>
+    <line x1="80" y1="42" x2="80" y2="56" stroke="#D4AF37" stroke-width="2"/>
+    <polygon points="40,56 32,75 40,80 48,75" fill="#A88B1A" stroke="#D4AF37" stroke-width="1.5"/>
+    <polygon points="80,56 72,75 80,80 88,75" fill="#A88B1A" stroke="#D4AF37" stroke-width="1.5"/>
+    <circle cx="40" cy="78" r="4" fill="#D4AF37"/>
+    <circle cx="80" cy="78" r="4" fill="#D4AF37"/>
+    <text x="60" y="100" text-anchor="middle" fill="#D4AF37" font-size="9" font-family="Vazirmatn">گوشواره</text>
+  </svg>`,
+  coin: `<svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="60" cy="60" r="55" fill="#1a1a1a" stroke="#D4AF37" stroke-width="1.5"/>
+    <circle cx="60" cy="60" r="36" fill="#A88B1A" stroke="#D4AF37" stroke-width="2.5"/>
+    <circle cx="60" cy="60" r="30" fill="none" stroke="#F5E17B" stroke-width="1"/>
+    <circle cx="60" cy="60" r="22" fill="#8B6914"/>
+    <text x="60" y="56" text-anchor="middle" fill="#F5E17B" font-size="11" font-weight="bold" font-family="Vazirmatn">طلای</text>
+    <text x="60" y="70" text-anchor="middle" fill="#F5E17B" font-size="11" font-weight="bold" font-family="Vazirmatn">تاج</text>
+    <text x="60" y="105" text-anchor="middle" fill="#D4AF37" font-size="9" font-family="Vazirmatn">سکه</text>
+  </svg>`,
+};
+
 const PRODUCTS = [
-  { id:1,  cat:'wedding',  name:'ست عروسی کلاسیک',  desc:'دستبند، گردنبند و گوشواره ست',     icon:'fa-ring',         badge:'پرفروش' },
-  { id:2,  cat:'wedding',  name:'ست عروسی رویال',    desc:'طراحی اختصاصی با نگین الماس',      icon:'fa-gem',          badge:'ویژه' },
-  { id:3,  cat:'ring',     name:'انگشتر نامزدی',     desc:'طلای ۱۸ عیار با الماس مرکزی',      icon:'fa-ring',         badge:'' },
-  { id:4,  cat:'ring',     name:'انگشتر فارسی',      desc:'طراحی سنتی ایرانی',                icon:'fa-ring',         badge:'' },
-  { id:5,  cat:'necklace', name:'گردنبند لوکس',      desc:'زنجیر طلا ۱۸ عیار ایتالیایی',     icon:'fa-link',         badge:'جدید' },  // FIX: fa-necklace invalid
-  { id:6,  cat:'necklace', name:'گردنبند قلب',       desc:'آویز قلب با نگین روبی',             icon:'fa-heart',        badge:'' },
-  { id:7,  cat:'bracelet', name:'دستبند کارتیه',     desc:'طراحی اقتباس از کارتیه',           icon:'fa-circle-dot',   badge:'' },
-  { id:8,  cat:'bracelet', name:'دستبند بنگل',       desc:'دستبند طلای سنتی',                 icon:'fa-circle-dot',   badge:'' },
-  { id:9,  cat:'earring',  name:'گوشواره آویز',      desc:'طلای ۱۸ عیار با زمرد',             icon:'fa-star',         badge:'' },
-  { id:10, cat:'earring',  name:'گوشواره حلقه',      desc:'حلقه کلاسیک طلای ۱۸ عیار',        icon:'fa-circle',       badge:'' },
-  { id:11, cat:'coin',     name:'سکه تمام بهار',     desc:'سکه امامی اصل با فاکتور رسمی',     icon:'fa-coins',        badge:'موجود' },
-  { id:12, cat:'coin',     name:'سکه گرمی',          desc:'سکه یک گرمی سرمایه‌گذاری',        icon:'fa-coins',        badge:'' },
-];
-
-const CAT_LABELS = {
-  wedding:'ست عروسی', ring:'انگشتر', necklace:'گردنبند',
-  bracelet:'دستبند', earring:'گوشواره', coin:'سکه',
-};
-
-function initProductGrid() { renderProducts('all'); }
-
-function renderProducts(cat) {
-  const grid = document.getElementById('productGrid');
-  if (!grid) return;
-  const list = cat === 'all' ? PRODUCTS : PRODUCTS.filter(p => p.cat === cat);
-  grid.innerHTML = list.map(p => {
-    const waText = encodeURIComponent(`سلام، درباره ${p.name} می‌خواستم استعلام بگیرم.`);
-    return `
-    <div class="product-card" onclick="openLightbox(${p.id})" data-cat="${p.cat}" role="button" tabindex="0">
-      <div class="product-img">
-        <i class="fas ${p.icon}" aria-hidden="true"></i>
-        ${p.badge ? `<div class="product-badge">${p.badge}</div>` : ''}
-      </div>
-      <div class="product-body">
-        <div class="product-cat">${CAT_LABELS[p.cat] || p.cat}</div>
-        <h3 class="product-name">${p.name}</h3>
-        <p class="product-desc">${p.desc}</p>
-        <div class="product-actions">
-          <a href="tel:09173957436" class="pact-call" onclick="event.stopPropagation()" aria-label="تماس برای ${p.name}">
-            <i class="fas fa-phone" aria-hidden="true"></i> تماس
-          </a>
-          <a href="https://wa.me/989173957436?text=${waText}" target="_blank" rel="noopener"
-             class="pact-wa" onclick="event.stopPropagation()" aria-label="واتساپ برای ${p.name}">
-            <i class="fab fa-whatsapp" aria-hidden="true"></i> استعلام
-          </a>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-
-  // Keyboard accessibility
-  grid.querySelectorAll('.product-card').forEach(card => {
-    card.addEventListener('keydown', e => {
-      if (e.key === 'Enter' || e.key === ' ') card.click();
-    });
-  });
-}
-
-function initProductFilter() {
-  document.querySelectorAll('.pcat').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.pcat').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      renderProducts(btn.dataset.cat);
-    });
-  });
-}
-
-// Lightbox
-window.openLightbox = function (id) {
-  const p = PRODUCTS.find(x => x.id === id);
-  if (!p) return;
-  const wrap = document.getElementById('lbImgWrap');
-  const info = document.getElementById('lbInfo');
-  if (wrap) wrap.innerHTML = `<i class="fas ${p.icon}" aria-hidden="true"></i>`;
-  if (info) info.innerHTML = `<h3>${p.name}</h3><p>${p.desc}</p>`;
-  const lb = document.getElementById('lightbox');
-  if (lb) { lb.classList.add('open'); lb.setAttribute('aria-hidden','false'); }
-  document.body.style.overflow = 'hidden';
-};
-
-window.closeLightbox = function () {
-  const lb = document.getElementById('lightbox');
-  if (lb) { lb.classList.remove('open'); lb.setAttribute('aria-hidden','true'); }
-  document.body.style.overflow = '';
-};
-
-document.getElementById('lightbox')?.addEventListener('click', function (e) {
-  if (e.target === this) closeLightbox();
-});
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeLightbox();
-});
-
-// ============================================================
-// SPECIAL ORDER → WhatsApp
-// ============================================================
-window.submitOrder = function () {
-  const name  = document.getElementById('oName')?.value.trim();
-  const phone = document.getElementById('oPhone')?.value.trim();
-  const desc  = document.getElementById('oDesc')?.value.trim();
-
-  if (!name || !phone) {
-    showToast('لطفاً نام و شماره تماس را وارد کنید', 'warn');
-    return;
-  }
-  if (!/^[۰-۹0-9]{10,11}$/.test(phone.replace(/\s/g,''))) {
-    showToast('شماره تماس معتبر نیست', 'warn');
-    return;
-  }
-
-  const msg = encodeURIComponent(
-    `سفارش ساخت طلای اختصاصی — طلای تاج\nنام: ${name}\nتلفن: ${phone}\nتوضیحات: ${desc || '—'}`
-  );
-  window.open(`https://wa.me/989173957436?text=${msg}`, '_blank', 'noopener');
-};
-
-// ============================================================
-// TOAST NOTIFICATION
-// ============================================================
-function showToast(msg, type = 'info') {
-  let toast = document.getElementById('toastMsg');
-  if (!toast) {
-    toast = document.createElement('div');
-    toast.id = 'toastMsg';
-    toast.style.cssText = `
-      position:fixed;top:90px;left:50%;transform:translateX(-50%);
-      padding:12px 24px;border-radius:12px;font-size:.88rem;font-weight:600;
-      font-family:Vazirmatn,sans-serif;z-index:9999;direction:rtl;
-      box-shadow:0 4px 20px rgba(0,0,0,.2);transition:opacity .3s;
-    `;
-    document.body.appendChild(toast);
-  }
-  toast.style.background = type === 'warn' ? '#f59e0b' : '#22c55e';
-  toast.style.color = '#000';
-  toast.textContent = msg;
-  toast.style.opacity = '1';
-  setTimeout(() => { toast.style.opacity = '0'; }, 3000);
-}
-
-// ============================================================
-// COUNTERS
-// ============================================================
-function initCounters() {
-  const els = document.querySelectorAll('.stat-num[data-target]');
-  if (!els.length) return;
-  const obs = new IntersectionObserver(entries => {
-    entries.forEach(e => {
-      if (!e.isIntersecting) return;
-      const el = e.target;
-      const target = parseInt(el.dataset.target, 10);
-      animateCounter(el, target);
-      obs.unobserve(el);
-    });
-  }, { threshold: 0.5 });
-  els.forEach(el => obs.observe(el));
-}
-
-function animateCounter(el, target) {
-  const duration = 1800;
-  const start = performance.now();
-  const tick = now => {
-    const p = Math.min((now - start) / duration, 1);
-    const eased = 1 - Math.pow(1 - p, 3);
-    el.textContent = Math.round(eased * target).toLocaleString('fa-IR');
-    if (p < 1) requestAnimationFrame(tick);
-    else el.textContent = target.toLocaleString('fa-IR') + (target === 100 ? '%' : '+');
-  };
-  requestAnimationFrame(tick);
-}
-
-// ============================================================
-// FAQ
-// ============================================================
-function initFAQ() {
-  document.querySelectorAll('.faq-q').forEach(btn => {
-    btn.addEventListener('click', () => toggleFaqItem(btn));
-  });
-}
-
-window.toggleFaq = function (btn) { toggleFaqItem(btn); };
-
-function toggleFaqItem(btn) {
-  const item   = btn.closest('.faq-item');
-  const isOpen = item.classList.contains('open');
-  document.querySelectorAll('.faq-item').forEach(i => {
-    i.classList.remove('open');
-    i.querySelector('.faq-q')?.setAttribute('aria-expanded', 'false');
-  });
-  if (!isOpen) {
-    item.classList.add('open');
-    btn.setAttribute('aria-expanded', 'true');
-  }
-}
-
-// ============================================================
-// REVIEW DOTS
-// ============================================================
-function buildReviewDots() {
-  const dots = document.getElementById('sliderDots');
-  if (!dots) return;
-  const count = document.querySelectorAll('.review-card').length;
-  dots.innerHTML = Array.from({ length: count }, (_, i) =>
-    `<div class="dot${i === 0 ? ' active' : ''}"></div>`
-  ).join('');
-}
-
-// ============================================================
-// TICKER  — FIX: clone only once, never re-clone on price update
-// ============================================================
-function initTickerOnce() {
-  const track = document.getElementById('tickerTrack');
-  if (!track || track.dataset.cloned) return;
-  track.dataset.cloned = '1';
-  // Wait until prices are populated then clone
-  setTimeout(() => {
-    track.innerHTML += track.innerHTML;
-  }, 1500);
-}
-
-// ============================================================
-// PRICE FLASH CSS (injected once)
-// ============================================================
-(function injectFlashCSS() {
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes priceFlash {
-      0%   { color: inherit; }
-      30%  { color: #D4AF37; }
-      100% { color: inherit; }
-    }
-    .price-flash { animation: priceFlash .6s ease; }
-  `;
-  document.head.appendChild(style);
-})();
-
-</script>
-</body>
-</html>
+  { id:1,  cat:'wedding',  name:'ست عروسی کلاسیک',  weight:'۱۸ گرم',  karat:'۱۸ عیار', badge:'پرفروش' },
+  { id:2,  cat:'wedding',  name:'ست عروسی رویال',    weight:'۲۴ گرم',  karat:'۱۸ عیار', badge:'ویژه' },
+  { id:3,  cat:'ring',     name:'انگشتر نامزدی',     weight:'۳.۵ گرم', karat:'۱۸ عیار', badge:'' },
+  { id:4,  cat:'ring',     name:'انگشتر کلاسیک',     weight:'۲.۸ گرم', karat:'۱۸ عیار', badge:'' },
+  { id:5,  cat:'necklace', name:'گردنبند لوکس',      weight:'۸ گرم',   karat:'۱۸ عیار', badge:'جدید' },
+  { id:6,  cat:'necklace', name:'گردنبند آویز قلب',  weight:'۵.۵ گرم', karat:'۱۸ عیار', badge:'' },
+  { id:7,  cat:'bracelet', name:'دستبند کارتیه',     weight:'۱۲ گرم',  karat:'۱۸ عیار', bad
